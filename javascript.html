@@ -1,0 +1,218 @@
+<script>
+  let GLOBAL_DATA = [];
+  let isDirty = false;
+
+  window.onload = function() {
+    google.script.run.withSuccessHandler(initApp).getStudentData();
+  };
+
+  function initApp(data) {
+    GLOBAL_DATA = data;
+    renderDataSiswa();
+    renderFormatif();
+    renderSumatif();
+    renderRapor();
+    document.getElementById('loader').style.display = 'none';
+  }
+
+  function updateHeaderInfo() {
+    document.getElementById('printSemester').innerText = "Semester " + document.getElementById('semesterSelect').value;
+  }
+
+  // --- 1. RENDER TAB DATA SISWA ---
+  function renderDataSiswa() {
+    const tbody = document.getElementById('bodyDataSiswa');
+    let rowsHTML = '';
+    
+    GLOBAL_DATA.forEach((row, idx) => {
+        // Data Backend (Code.gs):
+        // row[0]=Nama, row[1]=NIS, row[2]=NISN, row[3]=TTL, row[4]=JK
+        
+        // Tampilan UI: No | Nama | NIS | NISN | JK | TTL (Rata Kiri)
+        
+        rowsHTML += `<tr>
+            <td class="sticky-no">${idx+1}</td>
+            <td class="sticky-nama">${row[0]}</td>
+            <td>${row[1]}</td>
+            <td>${row[2]}</td>
+            <td>${row[4]}</td> <td class="text-left">${row[3]}</td> </tr>`;
+    });
+    tbody.innerHTML = rowsHTML;
+  }
+
+  // --- 2. RENDER TAB FORMATIF ---
+  function renderFormatif() {
+    const tbody = document.getElementById('bodyFormatif');
+    let html = '';
+    GLOBAL_DATA.forEach((row, idx) => {
+      let inputs = '';
+      for(let i=5; i<=9; i++) inputs += createInput(idx, i, row[i]);
+      html += `<tr>
+          <td class="sticky-no">${idx+1}</td>
+          <td class="sticky-nama text-truncate">${row[0]}</td>
+          ${inputs}
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  }
+
+  // --- 3. RENDER TAB SUMATIF ---
+  function renderSumatif() {
+    const tbody = document.getElementById('bodySumatif');
+    let html = '';
+    GLOBAL_DATA.forEach((row, idx) => {
+      let inputsLM = '';
+      for(let i=10; i<=12; i++) inputsLM += createInput(idx, i, row[i]);
+      let inputSAS = createInput(idx, 13, row[13]);
+      html += `<tr>
+          <td class="sticky-no">${idx+1}</td>
+          <td class="sticky-nama text-truncate">${row[0]}</td>
+          ${inputsLM}
+          ${inputSAS}
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  }
+
+  // --- 4. RENDER TAB RAPOR ---
+  function renderRapor() {
+    const tbody = document.getElementById('bodyRapor');
+    let html = '';
+
+    GLOBAL_DATA.forEach((row, idx) => {
+        let calc = calculateScore(row);
+        const val = (idx) => row[idx] !== "" ? row[idx] : "-";
+        
+        let nis = row[1] || '-';
+        let nisn = row[2] || '-';
+        let jk = row[4] || '-'; 
+
+        html += `<tr class="text-center">
+            <td>${idx+1}</td>
+            <td class="text-left text-nowrap sticky-nama">${row[0]}</td>
+            <td>${nis}</td>
+            <td>${nisn}</td>
+            <td>${jk}</td>
+            <td>${val(5)}</td><td>${val(6)}</td><td>${val(7)}</td><td>${val(8)}</td><td>${val(9)}</td>
+            <td>${val(10)}</td><td>${val(11)}</td><td>${val(12)}</td>
+            <td>${val(13)}</td>
+            <td class="fw-bold bg-light">${calc.rapor > 0 ? calc.rapor.toFixed(0) : ''}</td>
+            <td style="font-size:10px;">${calc.rapor >= 75 ? 'Tuntas' : ''}</td>
+        </tr>`;
+    });
+    tbody.innerHTML = html;
+  }
+
+  function createInput(rowIdx, colIdx, val) {
+    return `<td>
+      <input type="number" value="${val}" data-r="${rowIdx}" data-c="${colIdx}" oninput="updateData(this)">
+    </td>`;
+  }
+
+  function updateData(el) {
+    let r = el.getAttribute('data-r');
+    let c = el.getAttribute('data-c');
+    GLOBAL_DATA[r][c] = el.value;
+    if (!isDirty) {
+      isDirty = true;
+      document.getElementById('btnSave').disabled = false;
+      document.getElementById('btnSaveText').innerText = 'Simpan*';
+    }
+  }
+  
+  const tabRapor = document.querySelector('button[data-bs-target="#tab-rapor"]');
+  tabRapor.addEventListener('shown.bs.tab', function () { renderRapor(); });
+
+  function calculateScore(row) {
+    let sumLM = 0, countLM = 0;
+    for(let i=10; i<=12; i++) {
+        let v = parseFloat(row[i]);
+        if(!isNaN(v) && row[i]!=="") { sumLM += v; countLM++; }
+    }
+    let sas = parseFloat(row[13]) || 0;
+    let avgLM = countLM > 0 ? (sumLM/countLM) : 0;
+    let rapor = 0;
+    if(countLM > 0 || sas > 0) rapor = (avgLM * 0.6) + (sas * 0.4);
+    return { rapor };
+  }
+
+  function saveData() {
+    let btn = document.getElementById('btnSave');
+    let txt = document.getElementById('btnSaveText');
+    txt.innerText = 'Menyimpan...';
+    btn.disabled = true;
+    google.script.run.withSuccessHandler(res => {
+      alert(res);
+      isDirty = false;
+      txt.innerText = 'Simpan';
+    }).saveData(GLOBAL_DATA);
+  }
+
+  function resetData() {
+    if(!confirm("Hapus SEMUA NILAI?")) return;
+    document.getElementById('loader').style.display = 'flex';
+    google.script.run.withSuccessHandler(res => {
+        GLOBAL_DATA.forEach(row => { for(let i=5; i<=13; i++) row[i]=""; });
+        renderFormatif(); renderSumatif(); renderRapor();
+        isDirty = false;
+        document.getElementById('btnSave').disabled = true;
+        document.getElementById('btnSaveText').innerText = 'Simpan';
+        document.getElementById('loader').style.display = 'none';
+        alert("Nilai berhasil direset.");
+    }).resetAllScores();
+  }
+
+  function printRapor() {
+     let bsTab = new bootstrap.Tab(document.querySelector('button[data-bs-target="#tab-rapor"]'));
+     bsTab.show();
+     setTimeout(() => window.print(), 500);
+  }
+
+  function downloadExcel() {
+    let semester = document.getElementById('semesterSelect').value;
+    let headers = ["No", "Nama Siswa", "NIS", "NISN", "JK", "Tempat Tanggal Lahir", "TP1", "TP2", "TP3", "TP4", "TP5", "LM1", "LM2", "LM3", "SAS", "Nilai Akhir"];
+    
+    let data = [
+        ["REKAP NILAI PABP - SMK NEGERI 1 MALUKU TENGAH"],
+        ["Semester: " + semester],
+        [],
+        headers
+    ];
+
+    GLOBAL_DATA.forEach((row, idx) => {
+        let calc = calculateScore(row);
+        let rowData = [
+            idx+1,
+            row[0], 
+            row[1], 
+            row[2], 
+            row[4], // JK 
+            row[3], // TTL
+            row[5], row[6], row[7], row[8], row[9],
+            row[10], row[11], row[12],
+            row[13],
+            calc.rapor > 0 ? calc.rapor.toFixed(1) : ""
+        ];
+        data.push(rowData);
+    });
+
+    let wb = XLSX.utils.book_new();
+    let ws = XLSX.utils.aoa_to_sheet(data);
+    XLSX.writeFile(wb, "Rekap_Nilai_PABP.xlsx");
+  }
+
+  document.getElementById('searchInput').addEventListener('keyup', function() {
+    let key = this.value.toLowerCase();
+    const ids = ['bodyDataSiswa', 'bodyFormatif', 'bodySumatif', 'bodyRapor'];
+    ids.forEach(id => {
+        let rows = document.getElementById(id).querySelectorAll('tr');
+        rows.forEach(tr => {
+            let tdNama = tr.getElementsByTagName('td')[1];
+            if(tdNama) {
+                let txt = tdNama.textContent || tdNama.innerText;
+                tr.style.display = txt.toLowerCase().indexOf(key) > -1 ? "" : "none";
+            }
+        });
+    });
+  });
+</script>
