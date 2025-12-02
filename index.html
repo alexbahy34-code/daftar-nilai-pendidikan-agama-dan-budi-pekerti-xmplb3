@@ -2,7 +2,7 @@
         // =========================================================================
         // KONFIGURASI PENTING
         // =========================================================================
-        // URL Web App Anda (JANGAN UBAH BAGIAN INI LAGI, SUDAH BENAR)
+        // Ini URL Anda yang sudah benar
         const API_URL = "https://script.google.com/macros/s/AKfycbxTMEmIoDz8Iw05O6mhOTAVi_wsZUoGj44rmPJGP0mdgkrhIK678wP84-5x4XzuKjcRQg/exec"; 
         // =========================================================================
 
@@ -14,9 +14,8 @@
         };
 
         function fetchData() {
-            // SAYA HAPUS PENGECEKAN IF YANG SALAH AGAR LANGSUNG JALAN
+            // SAYA SUDAH MENGHAPUS BAGIAN "IF" YANG BIKIN ERROR DISINI
             
-            // Tampilkan loader saat memuat
             document.getElementById('loader').style.display = 'flex';
 
             // Gantikan google.script.run dengan fetch
@@ -52,7 +51,7 @@
         function renderDataSiswa() {
             const tbody = document.getElementById('bodyDataSiswa');
             let rowsHTML = '';
-            if (GLOBAL_DATA.length === 0) {
+            if (!GLOBAL_DATA || GLOBAL_DATA.length === 0) {
                  rowsHTML = '<tr><td colspan="6" class="text-center">Belum ada data siswa</td></tr>';
             } else {
                 GLOBAL_DATA.forEach((row, idx) => {
@@ -70,57 +69,63 @@
         function renderFormatif() {
             const tbody = document.getElementById('bodyFormatif');
             let html = '';
-            GLOBAL_DATA.forEach((row, idx) => {
-                let inputs = '';
-                for(let i=5; i<=9; i++) inputs += createInput(idx, i, row[i]);
-                html += `<tr>
-                    <td class="sticky-no">${idx+1}</td>
-                    <td class="sticky-nama text-truncate">${row[0]}</td>
-                    ${inputs}
-                </tr>`;
-            });
+            if (GLOBAL_DATA) {
+                GLOBAL_DATA.forEach((row, idx) => {
+                    let inputs = '';
+                    for(let i=5; i<=9; i++) inputs += createInput(idx, i, row[i]);
+                    html += `<tr>
+                        <td class="sticky-no">${idx+1}</td>
+                        <td class="sticky-nama text-truncate">${row[0]}</td>
+                        ${inputs}
+                    </tr>`;
+                });
+            }
             tbody.innerHTML = html;
         }
 
         function renderSumatif() {
             const tbody = document.getElementById('bodySumatif');
             let html = '';
-            GLOBAL_DATA.forEach((row, idx) => {
-                let inputsLM = '';
-                for(let i=10; i<=12; i++) inputsLM += createInput(idx, i, row[i]);
-                let inputSAS = createInput(idx, 13, row[13]);
-                html += `<tr>
-                    <td class="sticky-no">${idx+1}</td>
-                    <td class="sticky-nama text-truncate">${row[0]}</td>
-                    ${inputsLM}
-                    ${inputSAS}
-                </tr>`;
-            });
+            if (GLOBAL_DATA) {
+                GLOBAL_DATA.forEach((row, idx) => {
+                    let inputsLM = '';
+                    for(let i=10; i<=12; i++) inputsLM += createInput(idx, i, row[i]);
+                    let inputSAS = createInput(idx, 13, row[13]);
+                    html += `<tr>
+                        <td class="sticky-no">${idx+1}</td>
+                        <td class="sticky-nama text-truncate">${row[0]}</td>
+                        ${inputsLM}
+                        ${inputSAS}
+                    </tr>`;
+                });
+            }
             tbody.innerHTML = html;
         }
 
         function renderRapor() {
             const tbody = document.getElementById('bodyRapor');
             let html = '';
-            GLOBAL_DATA.forEach((row, idx) => {
-                let calc = calculateScore(row);
-                const val = (idx) => row[idx] !== "" ? row[idx] : "-";
-                let nis = row[1] || '-';
-                let nisn = row[2] || '-';
-                let jk = row[4] || '-';
-                html += `<tr class="text-center">
-                    <td>${idx+1}</td>
-                    <td class="text-left text-nowrap sticky-nama">${row[0]}</td>
-                    <td>${nis}</td>
-                    <td>${nisn}</td>
-                    <td>${jk}</td>
-                    <td>${val(5)}</td><td>${val(6)}</td><td>${val(7)}</td><td>${val(8)}</td><td>${val(9)}</td>
-                    <td>${val(10)}</td><td>${val(11)}</td><td>${val(12)}</td>
-                    <td>${val(13)}</td>
-                    <td class="fw-bold bg-light">${calc.rapor > 0 ? calc.rapor.toFixed(0) : ''}</td>
-                    <td style="font-size:10px;">${calc.rapor >= 75 ? 'Tuntas' : ''}</td>
-                </tr>`;
-            });
+            if (GLOBAL_DATA) {
+                GLOBAL_DATA.forEach((row, idx) => {
+                    let calc = calculateScore(row);
+                    const val = (idx) => row[idx] !== "" ? row[idx] : "-";
+                    let nis = row[1] || '-';
+                    let nisn = row[2] || '-';
+                    let jk = row[4] || '-';
+                    html += `<tr class="text-center">
+                        <td>${idx+1}</td>
+                        <td class="text-left text-nowrap sticky-nama">${row[0]}</td>
+                        <td>${nis}</td>
+                        <td>${nisn}</td>
+                        <td>${jk}</td>
+                        <td>${val(5)}</td><td>${val(6)}</td><td>${val(7)}</td><td>${val(8)}</td><td>${val(9)}</td>
+                        <td>${val(10)}</td><td>${val(11)}</td><td>${val(12)}</td>
+                        <td>${val(13)}</td>
+                        <td class="fw-bold bg-light">${calc.rapor > 0 ? calc.rapor.toFixed(0) : ''}</td>
+                        <td style="font-size:10px;">${calc.rapor >= 75 ? 'Tuntas' : ''}</td>
+                    </tr>`;
+                });
+            }
             tbody.innerHTML = html;
         }
 
@@ -170,8 +175,6 @@
                 data: GLOBAL_DATA
             };
 
-            // Menggunakan no-cors jika perlu, tapi biasanya web app mengembalikan JSON
-            // Jika ada masalah CORS, pastikan doGet/doPost mengembalikan TextOutput JSON
             fetch(API_URL, {
                 method: 'POST',
                 body: JSON.stringify(payload)
@@ -183,10 +186,8 @@
                 txt.innerText = 'Simpan';
             })
             .catch(err => {
-                // Kadang sukses tapi browser memblokir response karena CORS
-                // Jika data tersimpan di sheet tapi muncul error disini, itu normal di simple trigger
                 console.log(err); 
-                alert("Respon server diterima. Cek sheet untuk memastikan data tersimpan.");
+                alert("Respon server diterima (CORS). Cek sheet untuk memastikan data tersimpan.");
                 txt.innerText = 'Simpan';
                 btn.disabled = false;
             });
